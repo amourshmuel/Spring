@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:redis="http://www.springframework.org/schema/redis"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/redis http://www.springframework.org/schema/redis/spring-redis-1.0.xsd">
+
+<!-- Jedis Connection -->  
+<bean id="jedisConnectionFactory" class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory"
+   p:host-name="localhost" p:port="6379" />
+  
+<!-- Redis Template -->
+<bean id="redisTemplate" class="org.springframework.data.redis.core.RedisTemplate">
+	<property name="connectionFactory" ref="jedisConnectionFactory" />
+	<property name="valueSerializer">
+		<bean id="redisJsonSerializer" class="org.springframework.data.redis.serializer.JacksonJsonRedisSerializer">
+			<constructor-arg type="java.lang.Class" value="models.Book"/>
+		</bean>   
+	</property>
+</bean>
+
+<bean id="messageListener" class="org.springframework.data.redis.listener.adapter.MessageListenerAdapter">
+    <constructor-arg>
+        <bean class="models.Reader"/>
+    </constructor-arg>
+</bean>
+
+<bean id="redisContainer" class="org.springframework.data.redis.listener.RedisMessageListenerContainer">
+    <property name="connectionFactory" ref="jedisConnectionFactory"/>
+    <property name="messageListeners">
+      <!-- map of listeners and their associated topics (channels or/and patterns) -->
+      <map>
+        <entry key-ref="messageListener">
+            <bean class="org.springframework.data.redis.listener.ChannelTopic">
+               <constructor-arg value="available_books"/>
+            </bean>
+        </entry>
+      </map>
+    </property>
+</bean>
+
+<bean id="lbaRepository" class="repositories.LibraryAvaliableBookRepository">
+	<constructor-arg index="0">
+ 		<ref bean="redisTemplate"/>
+ 	</constructor-arg>
+</bean>
+<!-- 
+<bean id="lbrRepository" class="repositories.LibraryRentedBookRepository">
+	<constructor-arg index="0">
+ 		<ref bean="redisTemplate"/>
+ 	</constructor-arg>
+</bean>
+ -->
+<bean id="listener" class="models.Reader"/>
+
+</beans>
